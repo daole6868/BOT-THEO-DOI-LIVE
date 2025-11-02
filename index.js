@@ -132,7 +132,6 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
         .setColor('Orange')
         .setTimestamp();
       await sendEmbedTo(process.env.ADMIN_CHANNEL_ID, e);
-      await dmUser(user.id, `⚠️ Bạn đã bật/tắt stream ${pruned.length} lần trong 5 phút, vui lòng ổn định hơn.`);
     }
 
     const startEmbed = new EmbedBuilder()
@@ -180,7 +179,6 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
     await sendEmbedTo(process.env.LOG_CHANNEL_ID, endEmbed);
 
     if (durSec < 5 * 60) {
-      await dmUser(user.id, `⚠️ Phiên stream của bạn chỉ kéo dài **${durStr}** (<5 phút).`);
       const warn = new EmbedBuilder()
         .setTitle('⚠️ **CẢNH BÁO STREAM NGẮN (<5 phút)**')
         .setDescription(
