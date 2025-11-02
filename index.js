@@ -2,7 +2,8 @@ require('dotenv').config();
 const { 
   Client, 
   GatewayIntentBits, 
-  EmbedBuilder 
+  EmbedBuilder,
+  MessageFlags
 } = require('discord.js');
 const mongoose = require('mongoose');
 const cron = require('node-cron');
@@ -61,7 +62,7 @@ const client = new Client({
 });
 
 // ========== ON READY ==========
-client.once('clientReady', async () => {
+client.once('ready', async () => {
   console.log(`🤖 Bot đăng nhập: ${client.user.tag}`);
   await sendEmbedTo(process.env.LOG_CHANNEL_ID, new EmbedBuilder()
     .setTitle('✅ **BOT ĐÃ KHỞI ĐỘNG**')
@@ -192,16 +193,13 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
       await sendEmbedTo(process.env.ADMIN_CHANNEL_ID, warn);
     }
   }
-
-  // ===== 3️⃣ NGƯỜI DÙNG CHỈ AUDIO =====
-  if (!wasStreaming && !isStreaming) return; // Không log, không tính
 });
 
 // ========== ADMIN COMMANDS ==========
 client.on('messageCreate', async msg => {
   if (msg.author.bot || msg.channel.id !== process.env.COMMAND_CHANNEL_ID) return;
 
-  const [cmd, arg] = msg.content.trim().split(/\s+/);
+  const [cmd] = msg.content.trim().split(/\s+/);
 
   if (cmd === '!time' || cmd === '!time3' || cmd === '!time7') {
     const days = cmd === '!time' ? 1 : cmd === '!time3' ? 3 : 7;
@@ -230,7 +228,7 @@ client.on('messageCreate', async msg => {
     }
 
     if (embeds.length === 0) {
-      msg.reply(`❌ Không có dữ liệu trong ${days} ngày gần đây cho ${target}.`);
+      msg.reply({ content: `❌ Không có dữ liệu trong ${days} ngày gần đây cho ${target}.`, flags: MessageFlags.Ephemeral });
     } else {
       for (const e of embeds.reverse()) await msg.channel.send({ embeds: [e] });
     }
@@ -239,9 +237,8 @@ client.on('messageCreate', async msg => {
   if (cmd === '!top' || cmd === '!top7' || cmd === '!top15') {
     const days = cmd === '!top' ? 1 : cmd === '!top7' ? 7 : 15;
 
-    // 👇 Mốc bắt đầu tính theo 00:00 giờ Việt Nam (chuyển về UTC)
     const since = new Date();
-    since.setUTCHours(0 - 7, 0, 0, 0); // tức 00:00 VN hôm nay
+    since.setUTCHours(0 - 7, 0, 0, 0);
     since.setDate(since.getDate() - (days - 1));
 
     const sessions = await Session.find({ start: { $gte: since } });
@@ -253,7 +250,7 @@ client.on('messageCreate', async msg => {
 
     const sorted = Object.entries(totals).sort((a,b)=>b[1]-a[1]).slice(0,15);
     if (!sorted.length)
-      return msg.reply(`❌ Không có dữ liệu xếp hạng trong ${days} ngày qua.`);
+      return msg.reply({ content: `❌ Không có dữ liệu xếp hạng trong ${days} ngày qua.`, flags: MessageFlags.Ephemeral });
 
     const e = new EmbedBuilder()
       .setTitle(`🏆 **TOP ${days} NGÀY GẦN ĐÂY**`)
@@ -271,7 +268,8 @@ client.on('messageCreate', async msg => {
 // ========== KEEP-ALIVE SERVER ==========
 const app = express();
 app.get('/', (req, res) => res.send('🤖 Bot Discord đang chạy!'));
-app.listen(process.env.PORT || 3000, ()=>console.log('🌐 Server online'));
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, ()=>console.log(`🌐 Server online on port ${PORT}`));
 
 // ========== LOGIN ==========
 client.login(process.env.DISCORD_TOKEN);
