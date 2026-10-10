@@ -33,7 +33,8 @@ export interface ProductInput {
   buyerInputLabel?: string | null;
   stockFormat?: string | null;
   attrs: Record<string, unknown>;
-  imageUploadIds: string[];
+  /** Không truyền = giữ nguyên ảnh cũ (khi sửa) */
+  imageUploadIds?: string[];
   variants: VariantInput[];
   submit: boolean;
 }
@@ -74,7 +75,7 @@ export class ProductsService {
       if (v.minQty > v.maxQty) throw Errors.bad(`Gói "${v.name}": số lượng tối thiểu lớn hơn tối đa`);
       if (v.compareAtPrice != null && v.compareAtPrice <= v.price) throw Errors.bad(`Gói "${v.name}": giá gạch phải lớn hơn giá bán`);
     }
-    const uploads = await this.storage.assertOwned(ownerId, input.imageUploadIds, ['product']);
+    const uploads = input.imageUploadIds ? await this.storage.assertOwned(ownerId, input.imageUploadIds, ['product']) : null;
     const kw = await this.keywords.check(input.title, input.descriptionMd);
     if (kw.action === 'BLOCK') {
       throw Errors.business('BANNED_CONTENT', `Nội dung chứa từ khoá bị cấm: ${kw.matched.join(', ')}`);
@@ -82,7 +83,7 @@ export class ProductsService {
     return {
       category,
       attrs,
-      images: uploads.map((u) => this.storage.urlFor(u.key, true)),
+      images: uploads ? uploads.map((u) => this.storage.urlFor(u.key, true)) : undefined,
       needsReview: kw.action === 'REVIEW',
       searchText: toSearchText(input.title, store.name, category.name),
     };
@@ -117,7 +118,7 @@ export class ProductsService {
         buyerInputLabel: input.deliveryType === 'MANUAL' ? input.buyerInputLabel : null,
         stockFormat: input.deliveryType === 'AUTO' ? input.stockFormat : null,
         attrs: prep.attrs as Prisma.InputJsonValue,
-        images: prep.images,
+        images: prep.images ?? [],
         status,
         approvedAt: status === 'ACTIVE' ? new Date() : null,
         priceMin: BigInt(Math.min(...input.variants.filter((v) => v.isActive).map((v) => v.price))),

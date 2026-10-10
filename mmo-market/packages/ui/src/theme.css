@@ -1,0 +1,124 @@
+/* Design tokens dùng chung cho web & admin. Đổi màu thương hiệu tại đây. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-subtle: var(--subtle);
+  --color-fg: var(--fg);
+  --color-fg2: var(--fg-2);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-fg: var(--primary-fg);
+  --color-primary-soft: var(--primary-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --font-sans: 'Be Vietnam Pro', 'Segoe UI', Roboto, system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+  --bg: #f5f6fa;
+  --card: #ffffff;
+  --subtle: #f1f3f8;
+  --fg: #0f172a;
+  --fg-2: #334155;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --primary-fg: #ffffff;
+  --primary-soft: #eef2ff;
+  --success: #15803d;
+  --success-soft: #dcfce7;
+  --warning: #b45309;
+  --warning-soft: #fef3c7;
+  --danger: #dc2626;
+  --danger-soft: #fee2e2;
+  --info: #0369a1;
+  --info-soft: #e0f2fe;
+  /* Biểu đồ: bảng màu phân loại đã kiểm tra mù màu (thứ tự cố định) */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+  --chart-grid: #e1e0d9;
+  --chart-axis: #898781;
+  --chart-prev: #a8b3c4;
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: #0b1120;
+  --card: #111827;
+  --subtle: #1a2333;
+  --fg: #e5e7eb;
+  --fg-2: #cbd5e1;
+  --muted: #94a3b8;
+  --border: #243044;
+  --primary: #818cf8;
+  --primary-hover: #a5b4fc;
+  --primary-fg: #0b1120;
+  --primary-soft: rgba(129, 140, 248, 0.14);
+  --success: #4ade80;
+  --success-soft: rgba(74, 222, 128, 0.12);
+  --warning: #fbbf24;
+  --warning-soft: rgba(251, 191, 36, 0.12);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.12);
+  --info: #38bdf8;
+  --info-soft: rgba(56, 189, 248, 0.12);
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-grid: #2c2c2a;
+  --chart-axis: #898781;
+  --chart-prev: #4b5563;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  * {
+    border-color: var(--border);
+  }
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Nội dung Markdown đã được làm sạch ở server */
+  .prose-mmo h3 { font-size: 1.05rem; font-weight: 600; margin: 1rem 0 0.4rem; }
+  .prose-mmo h4 { font-weight: 600; margin: 0.8rem 0 0.3rem; }
+  .prose-mmo p { margin: 0 0 0.7rem; }
+  .prose-mmo ul { list-style: disc; padding-left: 1.3rem; margin: 0 0 0.7rem; }
+  .prose-mmo ol { list-style: decimal; padding-left: 1.3rem; margin: 0 0 0.7rem; }
+  .prose-mmo a { color: var(--primary); text-decoration: underline; }
+  .prose-mmo code { background: var(--subtle); padding: 0.1rem 0.35rem; border-radius: 6px; font-size: 0.9em; }
+  .prose-mmo pre { background: var(--subtle); padding: 0.8rem; border-radius: 10px; overflow-x: auto; }
+  .prose-mmo blockquote { border-left: 3px solid var(--border); padding-left: 0.8rem; color: var(--muted); }
+  .prose-mmo table { border-collapse: collapse; margin: 0.5rem 0; }
+  .prose-mmo th, .prose-mmo td { border: 1px solid var(--border); padding: 0.3rem 0.6rem; }
+}

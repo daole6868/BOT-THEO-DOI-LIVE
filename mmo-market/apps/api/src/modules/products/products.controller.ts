@@ -27,7 +27,7 @@ export const productSchema = z.object({
   buyerInputLabel: z.string().trim().max(200).nullable().optional(),
   stockFormat: z.string().trim().max(120).nullable().optional(),
   attrs: z.record(z.unknown()).default({}),
-  imageUploadIds: z.array(z.string().uuid()).max(8).default([]),
+  imageUploadIds: z.array(z.string().uuid()).max(8).optional(),
   variants: z.array(variantSchema).min(1).max(20),
   submit: z.boolean().default(true),
 });
