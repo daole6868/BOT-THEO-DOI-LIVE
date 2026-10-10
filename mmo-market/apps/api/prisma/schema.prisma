@@ -1,0 +1,1088 @@
+// MMO Market - lược đồ cơ sở dữ liệu
+// Tiền luôn là BigInt (đơn vị đồng). Không dùng số thực cho tiền.
+// Các ràng buộc bổ sung (CHECK, trigger chống sửa sổ cái/audit, index trigram) nằm trong migration SQL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Tài khoản, phiên, phân quyền
+// ============================================================
+
+enum UserStatus {
+  UNVERIFIED
+  ACTIVE
+  LOCKED
+  BANNED
+}
+
+model User {
+  id                  String     @id @default(uuid(7)) @db.Uuid
+  email               String     @unique
+  username            String     @unique
+  passwordHash        String
+  status              UserStatus @default(UNVERIFIED)
+  displayName         String
+  avatarUrl           String?
+  bio                 String?
+  emailVerifiedAt     DateTime?
+  mfaEnabled          Boolean    @default(false)
+  mfaSecretEnc        Bytes?
+  mfaPendingSecretEnc Bytes?
+  mfaRecoveryHashes   String[]   @default([])
+  mfaLastStep         Int?
+  txnPinHash          String?
+  isStaff             Boolean    @default(false)
+  roleId              String?    @db.Uuid
+  role                Role?      @relation(fields: [roleId], references: [id])
+  riskFlags           String[]   @default([])
+  failedLoginCount    Int        @default(0)
+  lockedUntil         DateTime?
+  withdrawLockedUntil DateTime?
+  lastLoginAt         DateTime?
+  lastLoginIp         String?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  sessions          Session[]
+  store             Store?
+  sellerApplication SellerApplication?
+  orders            Order[]             @relation("BuyerOrders")
+  bankAccounts      BankAccount[]
+  notifications     Notification[]
+  requestPosts      RequestPost[]
+  comments          Comment[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  name        String   @unique
+  description String?
+  permissions String[]
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  users       User[]
+
+  @@map("roles")
+}
+
+enum SessionKind {
+  WEB
+  ADMIN
+}
+
+model Session {
+  id            String      @id // sha256(token) dạng hex; token gốc chỉ nằm trong cookie
+  userId        String      @db.Uuid
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind          SessionKind
+  ip            String?
+  userAgent     String?
+  mfaVerifiedAt DateTime? // thời điểm xác thực lại gần nhất (step-up)
+  createdAt     DateTime    @default(now())
+  lastSeenAt    DateTime    @default(now())
+  expiresAt     DateTime
+  revokedAt     DateTime?
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model LoginEvent {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String?  @db.Uuid
+  login     String
+  ip        String?
+  userAgent String?
+  kind      SessionKind @default(WEB)
+  result    String // success | bad_password | mfa_failed | locked | not_verified | banned
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([ip, createdAt])
+  @@map("login_events")
+}
+
+enum EmailTokenPurpose {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+
+model EmailToken {
+  id        String            @id @default(uuid(7)) @db.Uuid
+  userId    String            @db.Uuid
+  purpose   EmailTokenPurpose
+  tokenHash String            @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime          @default(now())
+
+  @@index([userId, purpose])
+  @@map("email_tokens")
+}
+
+model UserBlock {
+  blockerId String   @db.Uuid
+  blockedId String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  @@id([blockerId, blockedId])
+  @@map("user_blocks")
+}
+
+// ============================================================
+// File tải lên
+// ============================================================
+
+model Upload {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  ownerId    String   @db.Uuid
+  purpose    String // product | avatar | banner | review | chat | dispute | kyc | delivery | receipt | post
+  storageKey String   @unique
+  isPublic   Boolean
+  mime       String
+  size       Int
+  width      Int?
+  height     Int?
+  createdAt  DateTime @default(now())
+
+  @@index([ownerId])
+  @@map("uploads")
+}
+
+// ============================================================
+// Người bán, gian hàng
+// ============================================================
+
+enum ApplicationStatus {
+  PENDING
+  NEED_INFO
+  APPROVED
+  REJECTED
+}
+
+model SellerApplication {
+  id               String            @id @default(uuid(7)) @db.Uuid
+  userId           String            @unique @db.Uuid
+  user             User              @relation(fields: [userId], references: [id])
+  storeName        String
+  storeSlug        String
+  mainCategoryId   String?           @db.Uuid
+  description      String
+  contact          String?
+  fullName         String
+  idNumberHash     String
+  idNumberLast4    String
+  idFrontUploadId  String            @db.Uuid
+  idBackUploadId   String            @db.Uuid
+  selfieUploadId   String            @db.Uuid
+  bankCode         String
+  bankName         String
+  bankAccountEnc   Bytes
+  bankAccountLast4 String
+  bankHolderName   String
+  status           ApplicationStatus @default(PENDING)
+  reviewNote       String?
+  reviewerId       String?           @db.Uuid
+  submittedAt      DateTime          @default(now())
+  reviewedAt       DateTime?
+
+  @@index([status, submittedAt])
+  @@index([idNumberHash])
+  @@map("seller_applications")
+}
+
+enum SellerLevel {
+  NEW
+  BRONZE
+  SILVER
+  GOLD
+  DIAMOND
+}
+
+enum StoreStatus {
+  ACTIVE
+  VACATION
+  SUSPENDED
+}
+
+model Store {
+  id                   String      @id @default(uuid(7)) @db.Uuid
+  ownerId              String      @unique @db.Uuid
+  owner                User        @relation(fields: [ownerId], references: [id])
+  slug                 String      @unique
+  name                 String
+  description          String      @default("")
+  policy               String      @default("")
+  avatarUrl            String?
+  bannerUrl            String?
+  level                SellerLevel @default(NEW)
+  status               StoreStatus @default(ACTIVE)
+  suspendReason        String?
+  vacationUntil        DateTime?
+  feeOverrideBps       Int?
+  defaultWarrantyHours Int         @default(24)
+  ratingAvg            Float       @default(0)
+  ratingCount          Int         @default(0)
+  soldCount            Int         @default(0)
+  completedOrders      Int         @default(0)
+  disputeCount         Int         @default(0)
+  followerCount        Int         @default(0)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  products  Product[]
+  orders    Order[]
+  offers    Offer[]
+  followers StoreFollower[]
+
+  @@map("stores")
+}
+
+model StoreFollower {
+  storeId   String   @db.Uuid
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  @@id([storeId, userId])
+  @@map("store_followers")
+}
+
+// ============================================================
+// Danh mục, thuộc tính, sản phẩm, kho
+// ============================================================
+
+enum DeliveryType {
+  AUTO
+  MANUAL
+}
+
+model Category {
+  id              String              @id @default(uuid(7)) @db.Uuid
+  parentId        String?             @db.Uuid
+  parent          Category?           @relation("CategoryTree", fields: [parentId], references: [id])
+  children        Category[]          @relation("CategoryTree")
+  slug            String              @unique
+  name            String
+  icon            String?
+  description     String?
+  path            String // ví dụ: tai-khoan/email
+  sortOrder       Int                 @default(0)
+  feeBps          Int                 @default(500)
+  defaultDelivery DeliveryType        @default(AUTO)
+  isActive        Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+  attributes      CategoryAttribute[]
+  products        Product[]
+
+  @@index([path])
+  @@map("categories")
+}
+
+enum AttrType {
+  SELECT
+  MULTISELECT
+  NUMBER
+  BOOLEAN
+  TEXT
+}
+
+model CategoryAttribute {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  categoryId   String   @db.Uuid
+  category     Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  key          String
+  label        String
+  type         AttrType
+  options      Json? // [{ value, label }]
+  unit         String?
+  isRequired   Boolean  @default(false)
+  isFilterable Boolean  @default(true)
+  sortOrder    Int      @default(0)
+
+  @@unique([categoryId, key])
+  @@map("category_attributes")
+}
+
+enum ProductStatus {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  HIDDEN
+  REJECTED
+  BLOCKED
+}
+
+model Product {
+  id              String        @id @default(uuid(7)) @db.Uuid
+  storeId         String        @db.Uuid
+  store           Store         @relation(fields: [storeId], references: [id])
+  categoryId      String        @db.Uuid
+  category        Category      @relation(fields: [categoryId], references: [id])
+  categoryPath    String
+  slug            String
+  title           String
+  searchText      String // tiêu đề + tên shop không dấu, chữ thường (phục vụ tìm kiếm)
+  descriptionMd   String
+  descriptionHtml String
+  deliveryType    DeliveryType
+  warrantyHours   Int
+  serviceSlaHours Int?
+  buyerInputLabel String? // dịch vụ: thông tin người mua phải nhập
+  stockFormat     String? // gợi ý định dạng dòng kho, ví dụ email|password|recovery
+  attrs           Json          @default("{}")
+  images          String[]      @default([])
+  status          ProductStatus @default(DRAFT)
+  moderationNote  String?
+  approvedAt      DateTime?
+  priceMin        BigInt        @default(0)
+  stockTotal      Int           @default(0)
+  soldCount       Int           @default(0)
+  ratingAvg       Float         @default(0)
+  ratingCount     Int           @default(0)
+  viewCount       Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+
+  variants   ProductVariant[]
+  stockItems StockItem[]
+  reviews    Review[]
+
+  @@unique([storeId, slug])
+  @@index([status, categoryPath])
+  @@index([storeId, status])
+  @@map("products")
+}
+
+model ProductVariant {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  productId        String   @db.Uuid
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name             String
+  price            BigInt
+  compareAtPrice   BigInt?
+  unitsPerPurchase Int      @default(1) // "Lô 10" = 10 item kho mỗi lần mua
+  minQty           Int      @default(1)
+  maxQty           Int      @default(1000)
+  isActive         Boolean  @default(true)
+  sortOrder        Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  @@index([productId])
+  @@map("product_variants")
+}
+
+model StockBatch {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  productId    String   @db.Uuid
+  uploadedById String   @db.Uuid
+  dekWrapped   Bytes // khoá dữ liệu của lô, đã được bọc bằng khoá chủ
+  totalLines   Int
+  accepted     Int
+  duplicates   Int
+  invalid      Int
+  createdAt    DateTime @default(now())
+
+  items StockItem[]
+
+  @@index([productId, createdAt])
+  @@map("stock_batches")
+}
+
+enum StockStatus {
+  AVAILABLE
+  SOLD
+  REVOKED
+}
+
+model StockItem {
+  id          String      @id @db.Uuid
+  productId   String      @db.Uuid
+  product     Product     @relation(fields: [productId], references: [id])
+  batchId     String      @db.Uuid
+  batch       StockBatch  @relation(fields: [batchId], references: [id])
+  contentEnc  Bytes // AES-256-GCM: nonce | tag | ciphertext, AAD = id:productId
+  contentHmac Bytes       @unique // chống bán trùng toàn sàn
+  preview     String // bản che, ví dụ abc***
+  status      StockStatus @default(AVAILABLE)
+  orderId     String?     @db.Uuid
+  soldAt      DateTime?
+  createdAt   DateTime    @default(now())
+
+  @@index([productId, status, createdAt])
+  @@index([orderId])
+  @@map("stock_items")
+}
+
+// ============================================================
+// Đơn hàng, ký quỹ, khiếu nại, đánh giá
+// ============================================================
+
+enum OrderStatus {
+  PAID
+  IN_PROGRESS
+  DELIVERED
+  DISPUTED
+  COMPLETED
+  REFUNDED
+  CANCELLED
+}
+
+enum OrderSource {
+  CATALOG
+  OFFER
+}
+
+model Order {
+  id              String       @id @default(uuid(7)) @db.Uuid
+  code            String       @unique
+  buyerId         String       @db.Uuid
+  buyer           User         @relation("BuyerOrders", fields: [buyerId], references: [id])
+  storeId         String       @db.Uuid
+  store           Store        @relation(fields: [storeId], references: [id])
+  sellerId        String       @db.Uuid
+  productId       String?      @db.Uuid
+  variantId       String?      @db.Uuid
+  categoryId      String?      @db.Uuid
+  source          OrderSource  @default(CATALOG)
+  offerId         String?      @db.Uuid
+  requestPostId   String?      @db.Uuid
+  status          OrderStatus
+  deliveryType    DeliveryType
+  title           String
+  variantName     String?
+  qty             Int
+  units           Int
+  unitPrice       BigInt
+  total           BigInt
+  feeBps          Int
+  feeAmount       BigInt       @default(0)
+  refundedAmount  BigInt       @default(0)
+  warrantyHours   Int
+  serviceSlaHours Int?
+  productSnapshot Json
+  buyerInputEnc   Bytes?
+  deliveryNote    String?
+  deliveryUploads String[]     @default([])
+  idempotencyKey  String
+  acceptedAt      DateTime?
+  serviceDeadline DateTime?
+  deliveredAt     DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  cancelReason    String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  escrow   EscrowHold?
+  events   OrderEvent[]
+  disputes Dispute[]
+  review   Review?
+
+  @@unique([buyerId, idempotencyKey])
+  @@index([buyerId, createdAt])
+  @@index([storeId, status, createdAt])
+  @@index([status, createdAt])
+  @@map("orders")
+}
+
+model OrderEvent {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  orderId   String   @db.Uuid
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  type      String
+  actorId   String?  @db.Uuid
+  message   String?
+  createdAt DateTime @default(now())
+
+  @@index([orderId, createdAt])
+  @@map("order_events")
+}
+
+model StockRevealLog {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  orderId   String   @db.Uuid
+  userId    String   @db.Uuid
+  isStaff   Boolean  @default(false)
+  reason    String?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([userId, createdAt])
+  @@map("stock_reveal_logs")
+}
+
+enum EscrowStatus {
+  HOLDING
+  FROZEN
+  RELEASED
+  REFUNDED
+}
+
+model EscrowHold {
+  id         String       @id @default(uuid(7)) @db.Uuid
+  orderId    String       @unique @db.Uuid
+  order      Order        @relation(fields: [orderId], references: [id])
+  sellerId   String       @db.Uuid
+  amount     BigInt // số tiền còn đang giữ
+  releaseAt  DateTime? // null = chưa giao (đơn dịch vụ)
+  status     EscrowStatus @default(HOLDING)
+  releasedAt DateTime?
+  createdAt  DateTime     @default(now())
+
+  @@index([status, releaseAt])
+  @@index([sellerId, status])
+  @@map("escrow_holds")
+}
+
+enum DisputeStatus {
+  OPEN
+  SELLER_RESPONDED
+  ESCALATED
+  RESOLVED
+}
+
+enum DisputeResolution {
+  REFUND_FULL
+  REFUND_PARTIAL
+  REPLACED
+  REJECTED
+  WITHDRAWN
+}
+
+model Dispute {
+  id               String             @id @default(uuid(7)) @db.Uuid
+  orderId          String             @db.Uuid
+  order            Order              @relation(fields: [orderId], references: [id])
+  openedById       String             @db.Uuid
+  reason           String
+  description      String
+  attachments      String[]           @default([])
+  stockItemIds     String[]           @default([])
+  status           DisputeStatus      @default(OPEN)
+  sellerAction     String? // REPLACE | REFUND | REJECT
+  sellerMessage    String?
+  proposedRefund   BigInt?
+  resolution       DisputeResolution?
+  refundAmount     BigInt             @default(0)
+  sellerDeadline   DateTime
+  buyerDeadline    DateTime?
+  assignedAdminId  String?            @db.Uuid
+  resolvedById     String?            @db.Uuid
+  resolutionNote   String?
+  resolvedAt       DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  events DisputeEvent[]
+
+  @@index([status, sellerDeadline])
+  @@index([orderId])
+  @@map("disputes")
+}
+
+model DisputeEvent {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  disputeId   String   @db.Uuid
+  dispute     Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  actorId     String?  @db.Uuid
+  actorRole   String // BUYER | SELLER | ADMIN | SYSTEM
+  type        String
+  message     String?
+  attachments String[] @default([])
+  createdAt   DateTime @default(now())
+
+  @@index([disputeId, createdAt])
+  @@map("dispute_events")
+}
+
+enum ReviewStatus {
+  VISIBLE
+  HIDDEN
+}
+
+model Review {
+  id              String       @id @default(uuid(7)) @db.Uuid
+  orderId         String       @unique @db.Uuid
+  order           Order        @relation(fields: [orderId], references: [id])
+  buyerId         String       @db.Uuid
+  storeId         String       @db.Uuid
+  productId       String?      @db.Uuid
+  product         Product?     @relation(fields: [productId], references: [id])
+  rating          Int
+  content         String
+  sellerReply     String?
+  sellerRepliedAt DateTime?
+  status          ReviewStatus @default(VISIBLE)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([productId, createdAt])
+  @@index([storeId, createdAt])
+  @@map("reviews")
+}
+
+// ============================================================
+// Ví & sổ cái kép (bất biến)
+// ============================================================
+
+enum AccountKind {
+  USER_AVAILABLE
+  USER_PENDING_WITHDRAWAL
+  ESCROW
+  PLATFORM_BANK
+  PLATFORM_FEE_REVENUE
+  PLATFORM_ADJUSTMENT
+}
+
+model LedgerAccount {
+  id        String      @id @default(uuid(7)) @db.Uuid
+  key       String      @unique // user:<id>:available | platform:bank ...
+  ownerId   String?     @db.Uuid
+  kind      AccountKind
+  balance   BigInt      @default(0)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  entries LedgerEntry[]
+
+  @@index([ownerId])
+  @@map("ledger_accounts")
+}
+
+model LedgerTransaction {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  type           String // deposit | purchase | escrow_release | refund | withdraw_request | withdraw_paid | withdraw_reject | adjustment
+  refType        String
+  refId          String
+  idempotencyKey String   @unique
+  description    String?
+  createdById    String?  @db.Uuid
+  approvedById   String?  @db.Uuid
+  createdAt      DateTime @default(now())
+
+  entries LedgerEntry[]
+
+  @@index([refType, refId])
+  @@index([createdAt])
+  @@map("ledger_transactions")
+}
+
+enum EntrySide {
+  D
+  C
+}
+
+model LedgerEntry {
+  id            BigInt            @id @default(autoincrement())
+  transactionId String            @db.Uuid
+  transaction   LedgerTransaction @relation(fields: [transactionId], references: [id])
+  accountId     String            @db.Uuid
+  account       LedgerAccount     @relation(fields: [accountId], references: [id])
+  side          EntrySide
+  amount        BigInt
+  balanceAfter  BigInt
+  createdAt     DateTime          @default(now())
+
+  @@index([accountId, id])
+  @@index([transactionId])
+  @@map("ledger_entries")
+}
+
+enum DepositStatus {
+  PENDING
+  COMPLETED
+  EXPIRED
+}
+
+model Deposit {
+  id             String        @id @default(uuid(7)) @db.Uuid
+  code           String        @unique
+  userId         String        @db.Uuid
+  amountExpected BigInt
+  amountReceived BigInt?
+  status         DepositStatus @default(PENDING)
+  provider       String?
+  providerTxnId  String?
+  idempotencyKey String
+  expiresAt      DateTime
+  completedAt    DateTime?
+  createdAt      DateTime      @default(now())
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, createdAt])
+  @@index([status, expiresAt])
+  @@map("deposits")
+}
+
+enum WebhookStatus {
+  PROCESSED
+  UNMATCHED
+  IGNORED
+  MATCHED_MANUAL
+}
+
+model PaymentWebhookEvent {
+  id             String        @id @default(uuid(7)) @db.Uuid
+  provider       String
+  providerTxnId  String
+  amount         BigInt
+  content        String
+  payload        Json
+  status         WebhookStatus
+  depositId      String?       @db.Uuid
+  matchedUserId  String?       @db.Uuid
+  createdAt      DateTime      @default(now())
+
+  @@unique([provider, providerTxnId])
+  @@index([status, createdAt])
+  @@map("payment_webhook_events")
+}
+
+model ManualDepositClaim {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  userId       String   @db.Uuid
+  amount       BigInt
+  transferAt   DateTime
+  note         String?
+  receiptKey   String?
+  status       String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  handledById  String?  @db.Uuid
+  handleNote   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@map("manual_deposit_claims")
+}
+
+model BankAccount {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  userId           String    @db.Uuid
+  user             User      @relation(fields: [userId], references: [id])
+  bankCode         String
+  bankName         String
+  accountNumberEnc Bytes
+  accountLast4     String
+  holderName       String
+  isActive         Boolean   @default(true)
+  cooldownUntil    DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@index([userId])
+  @@map("bank_accounts")
+}
+
+enum WithdrawalStatus {
+  REQUESTED
+  ON_HOLD
+  APPROVED
+  PAID
+  REJECTED
+  CANCELLED
+}
+
+model Withdrawal {
+  id             String           @id @default(uuid(7)) @db.Uuid
+  code           String           @unique
+  userId         String           @db.Uuid
+  bankAccountId  String           @db.Uuid
+  amount         BigInt
+  status         WithdrawalStatus @default(REQUESTED)
+  flags          String[]         @default([])
+  idempotencyKey String
+  approvedById   String?          @db.Uuid
+  approvedAt     DateTime?
+  paidById       String?          @db.Uuid
+  paidAt         DateTime?
+  bankRef        String?
+  rejectReason   String?
+  holdReason     String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@unique([userId, idempotencyKey])
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@map("withdrawals")
+}
+
+enum AdjustmentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model BalanceAdjustment {
+  id            String           @id @default(uuid(7)) @db.Uuid
+  userId        String           @db.Uuid
+  direction     String // CREDIT | DEBIT
+  amount        BigInt
+  type          String // MANUAL | DEPOSIT_MATCH | CLAIM
+  refId         String?
+  reason        String
+  status        AdjustmentStatus @default(PENDING)
+  requestedById String           @db.Uuid
+  decidedById   String?          @db.Uuid
+  decidedAt     DateTime?
+  createdAt     DateTime         @default(now())
+
+  @@index([status, createdAt])
+  @@map("balance_adjustments")
+}
+
+// ============================================================
+// Chợ yêu cầu: bài đăng, bình luận, báo giá
+// ============================================================
+
+enum PostStatus {
+  PENDING_REVIEW
+  OPEN
+  FULFILLED
+  CLOSED
+  EXPIRED
+  HIDDEN
+}
+
+model RequestPost {
+  id              String     @id @default(uuid(7)) @db.Uuid
+  authorId        String     @db.Uuid
+  author          User       @relation(fields: [authorId], references: [id])
+  categoryId      String     @db.Uuid
+  title           String
+  searchText      String
+  bodyMd          String
+  bodyHtml        String
+  budgetMin       BigInt?
+  budgetMax       BigInt?
+  quantity        Int?
+  offerVisibility String     @default("PRIVATE") // PRIVATE | PUBLIC
+  status          PostStatus @default(OPEN)
+  deadlineAt      DateTime
+  commentCount    Int        @default(0)
+  offerCount      Int        @default(0)
+  viewCount       Int        @default(0)
+  acceptedOfferId String?    @db.Uuid
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  comments Comment[]
+  offers   Offer[]
+
+  @@index([status, createdAt])
+  @@index([categoryId, status])
+  @@map("request_posts")
+}
+
+enum CommentStatus {
+  VISIBLE
+  HIDDEN
+  DELETED
+}
+
+model Comment {
+  id            String        @id @default(uuid(7)) @db.Uuid
+  postId        String        @db.Uuid
+  post          RequestPost   @relation(fields: [postId], references: [id])
+  authorId      String        @db.Uuid
+  author        User          @relation(fields: [authorId], references: [id])
+  parentId      String?       @db.Uuid
+  rootId        String?       @db.Uuid
+  replyToUserId String?       @db.Uuid
+  depth         Int           @default(0)
+  body          String
+  likeCount     Int           @default(0)
+  replyCount    Int           @default(0)
+  status        CommentStatus @default(VISIBLE)
+  editedAt      DateTime?
+  createdAt     DateTime      @default(now())
+
+  @@index([postId, depth, createdAt])
+  @@index([rootId, createdAt])
+  @@map("comments")
+}
+
+model CommentLike {
+  commentId String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  @@id([commentId, userId])
+  @@map("comment_likes")
+}
+
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  WITHDRAWN
+}
+
+model Offer {
+  id            String      @id @default(uuid(7)) @db.Uuid
+  postId        String      @db.Uuid
+  post          RequestPost @relation(fields: [postId], references: [id])
+  storeId       String      @db.Uuid
+  store         Store       @relation(fields: [storeId], references: [id])
+  sellerId      String      @db.Uuid
+  price         BigInt
+  deliveryHours Int
+  message       String
+  productId     String?     @db.Uuid
+  status        OfferStatus @default(PENDING)
+  orderId       String?     @db.Uuid
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([postId, storeId])
+  @@index([sellerId, createdAt])
+  @@map("offers")
+}
+
+// ============================================================
+// Chat & hỗ trợ
+// ============================================================
+
+enum ConversationType {
+  DIRECT
+  SUPPORT
+}
+
+model Conversation {
+  id                 String           @id @default(uuid(7)) @db.Uuid
+  type               ConversationType
+  directKey          String?          @unique
+  contextType        String? // product | order | post | store
+  contextId          String?
+  contextTitle       String?
+  supportTopic       String?
+  supportStatus      String? // QUEUED | ASSIGNED | RESOLVED
+  assignedStaffId    String?          @db.Uuid
+  lastMessageAt      DateTime         @default(now())
+  lastMessagePreview String?
+  createdAt          DateTime         @default(now())
+
+  members  ConversationMember[]
+  messages Message[]
+
+  @@index([type, supportStatus, lastMessageAt])
+  @@map("conversations")
+}
+
+model ConversationMember {
+  conversationId String       @db.Uuid
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String       @db.Uuid
+  role           String // MEMBER | STAFF
+  lastReadAt     DateTime     @default(now())
+  joinedAt       DateTime     @default(now())
+
+  @@id([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_members")
+}
+
+model Message {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  conversationId String       @db.Uuid
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String       @db.Uuid
+  clientMsgId    String
+  kind           String // TEXT | IMAGE | PRODUCT_CARD | ORDER_CARD | SYSTEM
+  body           String?
+  payload        Json?
+  flags          String[]     @default([])
+  createdAt      DateTime     @default(now())
+
+  @@unique([conversationId, clientMsgId])
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+// ============================================================
+// Thông báo, báo cáo, kiểm duyệt, hệ thống
+// ============================================================
+
+model Notification {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+model Report {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  reporterId  String    @db.Uuid
+  targetType  String // PRODUCT | POST | COMMENT | MESSAGE | USER | STORE | REVIEW
+  targetId    String
+  reason      String
+  detail      String?
+  status      String    @default("OPEN") // OPEN | ACTIONED | DISMISSED
+  action      String?
+  handledById String?   @db.Uuid
+  handleNote  String?
+  handledAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([status, createdAt])
+  @@index([targetType, targetId])
+  @@map("reports")
+}
+
+model BannedKeyword {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  pattern   String   @unique
+  action    String // BLOCK | REVIEW
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@map("banned_keywords")
+}
+
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  actorId    String?  @db.Uuid
+  actorIp    String?
+  actorUa    String?
+  action     String
+  targetType String?
+  targetId   String?
+  reason     String?
+  data       Json?
+  prevHash   String?
+  hash       String
+  createdAt  DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@index([targetType, targetId])
+  @@map("audit_logs")
+}
+
+model Setting {
+  key         String   @id
+  value       Json
+  updatedById String?  @db.Uuid
+  updatedAt   DateTime @updatedAt
+
+  @@map("settings")
+}

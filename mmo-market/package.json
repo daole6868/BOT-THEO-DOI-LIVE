@@ -1,0 +1,31 @@
+{
+  "name": "mmo-market",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sàn giao dịch sản phẩm MMO: nhiều gian hàng, ký quỹ, chợ yêu cầu, chat, admin",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "infra:up": "docker compose up -d postgres redis mailpit",
+    "infra:down": "docker compose down",
+    "setup": "node scripts/setup.mjs",
+    "db:migrate": "npm run db:migrate -w @mmo/api",
+    "db:seed": "npm run db:seed -w @mmo/api",
+    "db:reset": "npm run db:reset -w @mmo/api",
+    "dev": "concurrently -k -n api,web,admin -c blue,green,magenta \"npm run dev -w @mmo/api\" \"npm run dev -w @mmo/web\" \"npm run dev -w @mmo/admin\"",
+    "build": "npm run build -w @mmo/api && npm run build -w @mmo/web && npm run build -w @mmo/admin",
+    "start": "concurrently -k -n api,web,admin -c blue,green,magenta \"npm run start -w @mmo/api\" \"npm run start -w @mmo/web\" \"npm run start -w @mmo/admin\"",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test -w @mmo/api",
+    "test:e2e": "node --test --test-concurrency=1 tests/e2e/flow.test.mjs",
+    "gen:secrets": "node scripts/gen-secrets.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "9.2.4"
+  }
+}
