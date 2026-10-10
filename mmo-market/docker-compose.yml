@@ -1,0 +1,137 @@
+# MMO Market - chạy toàn bộ hệ thống trên máy bằng Docker
+#   docker compose up -d --build
+# Web:    http://localhost:3000
+# Admin:  http://localhost:3001
+# Email:  http://localhost:8025  (Mailpit – xem thư xác minh / OTP gửi đi)
+#
+# Cấu hình bên dưới là cấu hình CHẠY THỬ (APP_ENV=local, bí mật dev).
+# Khi chạy thật hãy đọc mục "Đưa lên production" trong README.
+
+name: mmo-market
+
+x-app-env: &app-env
+  NODE_ENV: production
+  APP_ENV: ${APP_ENV:-local}
+  APP_NAME: MMO Market
+  WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+  ADMIN_ORIGIN: ${ADMIN_ORIGIN:-http://localhost:3001}
+  API_PORT: 4000
+  DATABASE_URL: postgresql://mmo:${POSTGRES_PASSWORD:-mmo_dev_password}@postgres:5432/mmo_market?schema=public
+  REDIS_URL: redis://:${REDIS_PASSWORD:-redis_dev_password}@redis:6379
+  MASTER_KEY: ${MASTER_KEY:-ZGV2LW9ubHktbWFzdGVyLWtleS1jaGFuZ2UtbWUtISE=}
+  PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:-dev-only-webhook-secret-change-me}
+  SEPAY_API_KEY: ${SEPAY_API_KEY:-}
+  PAYMENT_WEBHOOK_IP_ALLOWLIST: ${PAYMENT_WEBHOOK_IP_ALLOWLIST:-}
+  COOKIE_SECURE: ${COOKIE_SECURE:-false}
+  TRUST_PROXY: 1
+  DEPOSIT_BANK_BIN: ${DEPOSIT_BANK_BIN:-970422}
+  DEPOSIT_BANK_NAME: ${DEPOSIT_BANK_NAME:-MB Bank}
+  DEPOSIT_ACCOUNT_NO: ${DEPOSIT_ACCOUNT_NO:-0000123456789}
+  DEPOSIT_ACCOUNT_NAME: ${DEPOSIT_ACCOUNT_NAME:-CONG TY TNHH MMO MARKET}
+  SMTP_HOST: ${SMTP_HOST:-mailpit}
+  SMTP_PORT: ${SMTP_PORT:-1025}
+  SMTP_SECURE: ${SMTP_SECURE:-false}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASS: ${SMTP_PASS:-}
+  MAIL_FROM: ${MAIL_FROM:-MMO Market <no-reply@mmomarket.local>}
+  TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
+  PASSWORD_BREACH_CHECK: ${PASSWORD_BREACH_CHECK:-false}
+  ADMIN_IP_ALLOWLIST: ${ADMIN_IP_ALLOWLIST:-}
+  ENABLE_DEV_TOOLS: ${ENABLE_DEV_TOOLS:-true}
+  STORAGE_DIR: /app/apps/api/storage
+  SEED_DEMO: ${SEED_DEMO:-true}
+  ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@mmo.local}
+  ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:-}
+
+services:
+  postgres:
+    image: postgres:16.4-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mmo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mmo_dev_password}
+      POSTGRES_DB: mmo_market
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mmo -d mmo_market"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-redis_dev_password}", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_dev_password}", "--no-auth-warning", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit:v1.21
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: api
+    restart: unless-stopped
+    environment: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:4000:4000"
+    volumes:
+      - storage:/app/apps/api/storage
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: web
+      args:
+        API_INTERNAL_URL: http://api:4000
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-http://localhost:4000}
+        NEXT_PUBLIC_DEV_TOOLS: ${ENABLE_DEV_TOOLS:-true}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  admin:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: admin
+      args:
+        API_INTERNAL_URL: http://api:4000
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-http://localhost:4000}
+        WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3001:3001"
+
+volumes:
+  pgdata:
+  redisdata:
+  storage:

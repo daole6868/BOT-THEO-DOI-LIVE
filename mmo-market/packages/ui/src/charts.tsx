@@ -201,7 +201,7 @@ export function Heatmap({ cells }: { cells: { dow: number; hour: number; n: numb
   const color = (n: number) => (n === 0 ? 'var(--subtle)' : SEQ[Math.min(SEQ.length - 1, Math.floor((n / max) * (SEQ.length - 1)))]);
   return (
     <div className="overflow-x-auto">
-      <div className="inline-grid gap-[2px]" style={{ gridTemplateColumns: `28px repeat(24, minmax(14px, 1fr))` }}>
+      <div className="grid min-w-[280px] gap-[2px]" style={{ gridTemplateColumns: `24px repeat(24, minmax(8px, 1fr))` }}>
         <span />
         {Array.from({ length: 24 }, (_, h) => (
           <span key={h} className="text-center text-[10px] text-muted">

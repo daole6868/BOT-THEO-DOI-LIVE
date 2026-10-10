@@ -10,6 +10,8 @@ import { api } from '@/lib/api';
 import { APP_STATUS } from '@/lib/labels';
 import { useRun } from '@/lib/useRun';
 
+const DOC: Record<string, string> = { front: 'CCCD mặt trước', back: 'CCCD mặt sau', selfie: 'Ảnh chân dung' };
+
 export default function ApplicationDetail() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -57,11 +59,11 @@ export default function ApplicationDetail() {
               <p className="flex items-center gap-2 text-sm text-muted"><EyeOff className="h-4 w-4" /> Bạn không có quyền xem ảnh KYC (kyc.view).</p>
             ) : (
               <div className="grid gap-3 sm:grid-cols-3">
-                {a.documents.map((d: any, i: number) => (
+                {a.documents.map((d: any) => (
                   <a key={d.id} href={d.url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl border border-border">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={d.url} alt={['Mặt trước', 'Mặt sau', 'Chân dung'][i]} className="aspect-[4/3] w-full object-cover" />
-                    <p className="p-2 text-center text-xs text-muted">{['CCCD mặt trước', 'CCCD mặt sau', 'Ảnh chân dung'][i]}</p>
+                    <img src={d.url} alt={DOC[d.kind]} className="aspect-[4/3] w-full object-cover" />
+                    <p className="p-2 text-center text-xs text-muted">{DOC[d.kind]}</p>
                   </a>
                 ))}
               </div>

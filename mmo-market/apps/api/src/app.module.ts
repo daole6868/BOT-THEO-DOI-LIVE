@@ -19,7 +19,7 @@ import { AdminSupportController, ChatController } from './modules/chat/chat.cont
 import { ChatGateway } from './modules/chat/chat.gateway';
 import { ChatService } from './modules/chat/chat.service';
 import { DisputesService } from './modules/disputes/disputes.service';
-import { HomeController } from './modules/home/home.controller';
+import { HealthController, HomeController } from './modules/home/home.controller';
 import { JobsService } from './modules/jobs/jobs.service';
 import { LedgerService } from './modules/ledger/ledger.service';
 import { NotificationsController } from './modules/notifications/notifications.controller';
@@ -46,6 +46,7 @@ import { WithdrawalsService } from './modules/wallet/withdrawals.service';
   imports: [CommonModule, ScheduleModule.forRoot(), AuthModule],
   controllers: [
     HomeController,
+    HealthController,
     UsersController,
     UploadsController,
     CategoriesController,

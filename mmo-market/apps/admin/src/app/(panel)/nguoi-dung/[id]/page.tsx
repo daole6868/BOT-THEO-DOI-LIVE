@@ -53,7 +53,7 @@ export default function User360() {
             <div className="mt-2 flex flex-wrap gap-2 text-xs">
               <Badge tone={u.mfaEnabled ? 'success' : 'neutral'}>{u.mfaEnabled ? <><ShieldCheck className="h-3 w-3" /> 2FA bật</> : <><ShieldOff className="h-3 w-3" /> 2FA tắt</>}</Badge>
               <Badge>Tham gia {timeAgo(u.createdAt)}</Badge>
-              {u.lastLoginAt && <Badge>Đăng nhập {timeAgo(u.lastLoginAt)} · {u.lastLoginIp}</Badge>}
+              {u.lastLoginAt && <Badge>Đăng nhập {timeAgo(u.lastLoginAt)}{u.lastLoginIp && ` · ${u.lastLoginIp}`}</Badge>}
               {u.withdrawLockedUntil && new Date(u.withdrawLockedUntil) > new Date() && <Badge tone="warning"><Clock className="h-3 w-3" /> Khoá rút đến {dateTime(u.withdrawLockedUntil)}</Badge>}
             </div>
           </div>
@@ -131,6 +131,7 @@ export default function User360() {
 
       <Card>
         <CardHeader title="Lịch sử đăng nhập" subtitle="20 lần gần nhất" />
+        {!u.logins.length ? <p className="px-5 pb-5 text-sm text-muted">Chưa có dữ liệu đăng nhập</p> : (
         <Table>
           <thead><tr><TH>Thời gian</TH><TH>Khu vực</TH><TH>Kết quả</TH><TH>IP</TH><TH>Thiết bị</TH></tr></thead>
           <tbody>
@@ -145,6 +146,7 @@ export default function User360() {
             ))}
           </tbody>
         </Table>
+        )}
       </Card>
 
       <ReasonModal

@@ -252,9 +252,11 @@ export class StoresService {
     });
     if (!app) throw Errors.notFound('Hồ sơ');
     const sameBank = await this.prisma.sellerApplication.count({ where: { bankAccountLast4: app.bankAccountLast4, bankCode: app.bankCode, id: { not: app.id } } });
-    let documents: { id: string; url: string }[] = [];
+    let documents: { id: string; kind: 'front' | 'back' | 'selfie'; url: string }[] = [];
     if (canViewKyc) {
-      documents = await this.storage.signedUrls([app.idFrontUploadId, app.idBackUploadId, app.selfieUploadId]);
+      const urls = new Map((await this.storage.signedUrls([app.idFrontUploadId, app.idBackUploadId, app.selfieUploadId])).map((u) => [u.id, u.url]));
+      const order = [['front', app.idFrontUploadId], ['back', app.idBackUploadId], ['selfie', app.selfieUploadId]] as const;
+      documents = order.filter(([, id]) => urls.has(id)).map(([kind, id]) => ({ id, kind, url: urls.get(id)! }));
       await this.audit.log({ actorId: staff.user.id, ip: staff.ip, userAgent: staff.userAgent, action: 'kyc.view', targetType: 'seller_application', targetId: app.id });
     }
     return { ...this.serializeApplication(app), documents, signals: { sameBankCount: sameBank } };

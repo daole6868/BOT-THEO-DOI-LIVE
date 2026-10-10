@@ -2,6 +2,8 @@
 
 > Tên dự án tạm gọi: **MMO Market**. Đổi tên thương hiệu sau khi chốt domain.
 
+> **Mã nguồn đã triển khai** nằm ở thư mục gốc dự án – xem [README chạy thử](../README.md). Khác biệt so với kế hoạch: tìm kiếm dùng PostgreSQL thay cho Meilisearch (xem [04 §4](./04-kien-truc-cong-nghe.md)).
+
 Đây là bộ tài liệu kế hoạch cho một sàn thương mại điện tử nhiều người bán (multi-vendor), chuyên về sản phẩm và dịch vụ MMO (Make Money Online). Tài liệu đủ để đội dev, thiết kế và vận hành bắt tay vào làm.
 
 ## Yêu cầu gốc

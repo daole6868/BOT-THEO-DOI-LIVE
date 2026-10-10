@@ -138,6 +138,8 @@ mmo-market/
 
 ## 4. Tìm kiếm và bộ lọc (Meilisearch)
 
+> **Ghi chú bản cài đặt hiện tại:** mã nguồn đi kèm dùng **PostgreSQL** cho tìm kiếm và bộ lọc (`pg_trgm` cho tìm gần đúng / không dấu, cột `attrs jsonb` + chỉ mục GIN cho facet, đếm facet "loại trừ chính nó"). Cách này bớt một dịch vụ phải vận hành và đủ nhanh tới khoảng 100 nghìn sản phẩm. Khi vượt mức đó, chuyển sang Meilisearch theo thiết kế bên dưới – giao diện API `/search` giữ nguyên nên frontend không phải sửa.
+
 **Index `products`** (1 document cho mỗi sản phẩm đang bán):
 
 ```json

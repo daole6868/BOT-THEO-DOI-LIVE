@@ -58,3 +58,16 @@ export class HomeController {
     return data;
   }
 }
+
+/** Kiểm tra sống cho Docker / load balancer: không lộ thông tin nội bộ. */
+@Controller('health')
+export class HealthController {
+  constructor(private readonly prisma: PrismaService) {}
+
+  @Public()
+  @Get()
+  async health() {
+    await this.prisma.$queryRaw`SELECT 1`;
+    return { ok: true };
+  }
+}

@@ -246,8 +246,12 @@ async function main() {
     console.log('• Cơ sở dữ liệu đã có dữ liệu, bỏ qua seed. (Dùng npm run db:reset để xoá và seed lại)');
     return;
   }
+  if (process.env.APP_ENV === 'production' && process.env.SEED_DEMO !== 'false') {
+    console.error('❌ APP_ENV=production: không được tạo dữ liệu demo. Đặt SEED_DEMO=false để chỉ khởi tạo danh mục và tài khoản Super Admin.');
+    process.exit(1);
+  }
   if (process.env.SEED_DEMO === 'false') {
-    console.log('• SEED_DEMO=false: chỉ tạo vai trò, danh mục và tài khoản quản trị.');
+    console.log('• SEED_DEMO=false: chỉ tạo vai trò, danh mục và tài khoản Super Admin.');
   }
   const demo = process.env.SEED_DEMO !== 'false';
   console.log('→ Đang tạo dữ liệu mẫu...');
@@ -276,6 +280,15 @@ async function main() {
 
   for (const [pattern, action] of BANNED) await prisma.bannedKeyword.create({ data: { pattern, action } });
 
+  if (!demo) {
+    // Chạy thật: chỉ 1 Super Admin với mật khẩu ngẫu nhiên (hoặc ADMIN_INITIAL_PASSWORD), không dùng mật khẩu demo công khai
+    const email = (process.env.ADMIN_EMAIL || 'admin@mmo.local').toLowerCase();
+    const initial = process.env.ADMIN_INITIAL_PASSWORD || `${randomBytes(9).toString('base64url')}#9a`;
+    await createUser({ email, username: 'superadmin', displayName: 'Quản trị viên', staffRole: 'SUPER_ADMIN' }, await hashPassword(initial), roles);
+    console.log(`✔ Xong (không có dữ liệu demo).\n  Super Admin: ${email}\n  Mật khẩu tạm: ${initial}\n  → Đăng nhập trang quản trị, cài 2FA và đổi mật khẩu ngay. Mật khẩu này chỉ hiển thị một lần.`);
+    return;
+  }
+
   // Nhân sự (đăng nhập admin lần đầu sẽ bắt buộc cài 2FA)
   const admin = await createUser({ email: 'admin@mmo.local', username: 'superadmin', displayName: 'Quản trị viên', staffRole: 'SUPER_ADMIN' }, pw, roles);
   const finance = await createUser({ email: 'ketoan@mmo.local', username: 'ketoan', displayName: 'Kế toán Minh', staffRole: 'FINANCE' }, pw, roles);
@@ -284,11 +297,6 @@ async function main() {
   await createUser({ email: 'kiemduyet@mmo.local', username: 'kiemduyet', displayName: 'Kiểm duyệt Nam', staffRole: 'MODERATOR' }, pw, roles);
 
   await prisma.setting.create({ data: { key: 'site.announcement', value: '🎉 Chào mừng đến MMO Market (bản demo). Mọi giao dịch được giữ tiền an toàn qua ký quỹ.' } });
-
-  if (!demo) {
-    console.log('✔ Xong (không có dữ liệu demo).');
-    return;
-  }
 
   // Người mua
   const buyerNames = ['Nguyễn Văn An', 'Trần Thị Bình', 'Lê Hoàng Cường', 'Phạm Minh Đức', 'Hoàng Thu Hà', 'Vũ Quốc Khánh', 'Đặng Mai Linh', 'Bùi Tuấn Minh', 'Đỗ Ngọc Phương', 'Ngô Thanh Sơn'];
