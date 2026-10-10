@@ -17,6 +17,7 @@
     "db:migrate": "npm run db:migrate -w @mmo/api",
     "db:seed": "npm run db:seed -w @mmo/api",
     "db:reset": "npm run db:reset -w @mmo/api",
+    "quick": "node scripts/quick.mjs",
     "dev": "concurrently -k -n api,web,admin -c blue,green,magenta \"npm run dev -w @mmo/api\" \"npm run dev -w @mmo/web\" \"npm run dev -w @mmo/admin\"",
     "build": "npm run build -w @mmo/api && npm run build -w @mmo/web && npm run build -w @mmo/admin",
     "start": "concurrently -k -n api,web,admin -c blue,green,magenta \"npm run start -w @mmo/api\" \"npm run start -w @mmo/web\" \"npm run start -w @mmo/admin\"",
@@ -26,6 +27,7 @@
     "gen:secrets": "node scripts/gen-secrets.mjs"
   },
   "devDependencies": {
-    "concurrently": "9.2.4"
+    "concurrently": "9.2.4",
+    "embedded-postgres": "16.14.0-beta.17"
   }
 }

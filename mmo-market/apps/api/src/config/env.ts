@@ -86,6 +86,7 @@ export function assertProductionSafety() {
   if (env.ENABLE_DEV_TOOLS) problems.push('ENABLE_DEV_TOOLS phải tắt');
   if (!env.COOKIE_SECURE) problems.push('COOKIE_SECURE phải bật (HTTPS)');
   if (!env.TURNSTILE_SECRET_KEY) problems.push('Cần cấu hình TURNSTILE_SECRET_KEY (CAPTCHA)');
+  if (env.REDIS_URL.startsWith('memory')) problems.push('REDIS_URL=memory:// chỉ dùng để chạy thử, production cần Redis thật');
   if (problems.length) {
     // eslint-disable-next-line no-console
     console.error('❌ Không thể chạy production:\n - ' + problems.join('\n - '));

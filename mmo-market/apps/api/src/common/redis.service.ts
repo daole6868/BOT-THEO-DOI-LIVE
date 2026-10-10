@@ -2,14 +2,40 @@ import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import Redis from 'ioredis';
 import { env } from '../config/env';
 
+/** REDIS_URL=memory:// -> dùng Redis giả lập trong bộ nhớ (chỉ để chạy thử 1 tiến trình, không cần cài Redis). */
+export const isMemoryRedis = () => env.REDIS_URL.startsWith('memory');
+
+const logger = new Logger('Redis');
+let lastErrorLog = 0;
+
+/** Tạo kết nối Redis (thật hoặc giả lập) và gắn bộ xử lý lỗi, ghi log tối đa 1 lần / 10 giây. */
+export function createRedis(): Redis {
+  if (isMemoryRedis()) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const RedisMock = require('ioredis-mock');
+    return new RedisMock() as Redis;
+  }
+  const client = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 3, enableReadyCheck: true });
+  client.on('error', (e: Error & { code?: string }) => {
+    if (Date.now() - lastErrorLog < 10_000) return;
+    lastErrorLog = Date.now();
+    const host = env.REDIS_URL.replace(/\/\/[^@]*@/, '//');
+    logger.error(
+      e.code === 'ECONNREFUSED'
+        ? `Không kết nối được Redis (${host}). Hãy bật Redis, hoặc chạy "npm run quick" để dùng Redis trong bộ nhớ.`
+        : e.message || String(e),
+    );
+  });
+  return client;
+}
+
 @Injectable()
 export class RedisService implements OnModuleDestroy {
-  private readonly logger = new Logger('Redis');
   readonly client: Redis;
 
   constructor() {
-    this.client = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 3, enableReadyCheck: true });
-    this.client.on('error', (e) => this.logger.error(e.message));
+    this.client = createRedis();
+    if (isMemoryRedis()) logger.warn('Đang dùng Redis giả lập trong bộ nhớ (REDIS_URL=memory://) – chỉ dành cho chạy thử.');
   }
 
   duplicate(): Redis {

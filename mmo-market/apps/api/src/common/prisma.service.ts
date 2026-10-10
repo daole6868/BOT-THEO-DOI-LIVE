@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
 
 export type Tx = Prisma.TransactionClient;
@@ -6,7 +6,17 @@ export type Tx = Prisma.TransactionClient;
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
-    await this.$connect();
+    try {
+      await this.$connect();
+    } catch (e) {
+      const where = (process.env.DATABASE_URL ?? '').replace(/\/\/[^@]*@/, '//').split('?')[0];
+      new Logger('Database').error(
+        `Không kết nối được PostgreSQL (${where}).\n` +
+          '  → Cách nhanh nhất: dừng lệnh này rồi chạy "npm run quick" (tự bật PostgreSQL kèm theo, không cần cài gì thêm).\n' +
+          '  → Hoặc bật PostgreSQL của bạn và kiểm tra DATABASE_URL trong file .env',
+      );
+      throw e;
+    }
   }
 
   async onModuleDestroy() {

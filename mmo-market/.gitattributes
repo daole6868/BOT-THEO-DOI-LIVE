@@ -1,3 +1,4 @@
 # Giữ LF cho script chạy trong container Linux (tránh lỗi khi clone trên Windows)
 *.sh text eol=lf
 Dockerfile text eol=lf
+*.bat text eol=crlf

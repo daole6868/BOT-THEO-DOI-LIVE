@@ -1,16 +1,18 @@
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
-import Redis from 'ioredis';
 import type { ServerOptions } from 'socket.io';
 import { env } from '../../config/env';
+import { createRedis, isMemoryRedis } from '../../common/redis.service';
 
 /** Socket.IO dùng Redis pub/sub để nhiều instance API cùng phát sự kiện realtime. */
 export class RedisIoAdapter extends IoAdapter {
   private adapterConstructor: ReturnType<typeof createAdapter> | null = null;
 
   async connectToRedis() {
-    const pub = new Redis(env.REDIS_URL);
-    const sub = pub.duplicate();
+    // Chế độ Redis trong bộ nhớ chỉ có 1 tiến trình API -> không cần pub/sub giữa các instance
+    if (isMemoryRedis()) return;
+    const pub = createRedis();
+    const sub = createRedis();
     this.adapterConstructor = createAdapter(pub, sub);
   }
 

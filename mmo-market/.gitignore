@@ -13,3 +13,4 @@ apps/api/storage/
 next-env.d.ts
 .DS_Store
 .turbo/
+.data/

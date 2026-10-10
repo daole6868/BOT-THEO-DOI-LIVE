@@ -14,7 +14,27 @@ Bộ tài liệu thiết kế đầy đủ (chức năng, luồng nghiệp vụ,
 
 ---
 
-## Cách 1 – Chạy bằng Docker (khuyên dùng, Windows / macOS / Linux)
+## Cách nhanh nhất – chỉ cần Node.js (không cần Docker, PostgreSQL hay Redis)
+
+1. Cài **Node.js bản LTS** (20 trở lên) tại https://nodejs.org – bấm Next đến hết.
+2. Giải nén file zip. Mở thư mục có file `package.json` (nếu giải nén ra 2 lớp `mmo-market\mmo-market` thì vào lớp trong).
+3. **Windows**: bấm đúp file **`CHAY-NHANH.bat`**.
+   **Mọi hệ điều hành**: mở Terminal / CMD trong thư mục đó và chạy:
+   ```bash
+   npm install
+   npm run quick
+   ```
+4. Đợi dòng **`API đang chạy tại http://localhost:4000/api`** rồi mở http://localhost:3000 (web) và http://localhost:3001 (admin).
+
+Lần đầu mất khoảng 3–5 phút (tải thư viện + tạo dữ liệu mẫu), các lần sau chỉ khoảng 15 giây. Nhấn `Ctrl + C` để dừng.
+
+`npm run quick` tự làm mọi thứ: tạo file `.env`, bật PostgreSQL nhúng (dữ liệu lưu trong thư mục `.data/`), dùng Redis giả lập trong bộ nhớ, tạo bảng, tạo dữ liệu mẫu và chạy cả 3 ứng dụng.
+Muốn xoá sạch dữ liệu và tạo lại từ đầu: `npm run quick -- --reset`.
+
+> Chế độ này chỉ để chạy thử trên máy. Khi chạy thật hãy dùng PostgreSQL + Redis thật (Cách 1 hoặc 2 bên dưới).
+> Nếu Windows hỏi cho phép Node.js / PostgreSQL qua tường lửa, chọn **Allow** (mạng riêng).
+
+## Cách 1 – Chạy bằng Docker (Windows / macOS / Linux)
 
 Chỉ cần cài **Docker Desktop** (https://www.docker.com/products/docker-desktop). Không cần cài Node.js hay PostgreSQL.
 
@@ -168,8 +188,10 @@ Cấu hình mặc định chỉ để **chạy thử trên máy**. Trước khi 
 
 | Hiện tượng | Cách xử lý |
 |---|---|
-| `Can't reach database server` | PostgreSQL chưa chạy hoặc sai `DATABASE_URL` trong `.env` |
-| `NOAUTH Authentication required` / lỗi Redis | Redis chưa đặt mật khẩu trùng `REDIS_URL` |
+| `Can't reach database server` / `Không kết nối được PostgreSQL` | Máy chưa có PostgreSQL – dùng `npm run quick` (có sẵn PostgreSQL nhúng), hoặc kiểm tra `DATABASE_URL` trong `.env` |
+| `Không kết nối được Redis` / `NOAUTH Authentication required` | Dùng `npm run quick` (Redis trong bộ nhớ), hoặc bật Redis với mật khẩu trùng `REDIS_URL` |
+| `Cổng 3000/3001/4000 đang bị dùng` | Còn cửa sổ chạy cũ – đóng nó (hoặc tắt tiến trình `node`) rồi chạy lại |
+| `'docker' is not recognized` | Máy chưa cài Docker – dùng cách nhanh `npm run quick` ở đầu tài liệu |
 | Vào Seller Center báo cần 2FA | Đúng thiết kế – bật 2FA ở *Tài khoản → Bảo mật* |
 | Không nhận được email xác minh | Xem tại http://localhost:8025 (Mailpit) |
-| Muốn làm lại dữ liệu mẫu | Docker: `docker compose down -v` rồi `up` lại. Node: `npm run db:reset` |
+| Muốn làm lại dữ liệu mẫu | Cách nhanh: `npm run quick -- --reset`. Docker: `docker compose down -v` rồi `up` lại. Node: `npm run db:reset` |

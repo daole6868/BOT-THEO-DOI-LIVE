@@ -33,6 +33,7 @@
     "express": "5.2.1",
     "helmet": "8.3.0",
     "ioredis": "5.11.1",
+    "ioredis-mock": "8.13.1",
     "markdown-it": "14.3.2",
     "multer": "2.4.0",
     "nodemailer": "7.0.13",

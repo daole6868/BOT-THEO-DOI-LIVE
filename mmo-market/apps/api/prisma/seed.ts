@@ -243,7 +243,7 @@ async function addStock(productId: string, uploadedById: string, count: number, 
 async function main() {
   const force = process.argv.includes('--force');
   if ((await prisma.category.count()) > 0 && !force) {
-    console.log('• Cơ sở dữ liệu đã có dữ liệu, bỏ qua seed. (Dùng npm run db:reset để xoá và seed lại)');
+    console.log('• Cơ sở dữ liệu đã có dữ liệu, bỏ qua seed. (Muốn làm lại từ đầu: "npm run quick -- --reset" hoặc "npm run db:reset")');
     return;
   }
   if (process.env.APP_ENV === 'production' && process.env.SEED_DEMO !== 'false') {
