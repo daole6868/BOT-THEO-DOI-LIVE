@@ -117,10 +117,22 @@ const env = {
 };
 
 let stopping = false;
+let dev = null;
 async function shutdown(code = 0) {
   if (stopping) return;
   stopping = true;
   say('Đang dừng...');
+  if (dev && dev.exitCode === null) {
+    if (isWin) spawnSync('taskkill', ['/pid', String(dev.pid), '/T', '/F'], { stdio: 'ignore' });
+    else {
+      try {
+        process.kill(-dev.pid, 'SIGINT'); // cả nhóm tiến trình: npm -> concurrently -> api/web/admin
+      } catch {
+        dev.kill('SIGINT');
+      }
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+  }
   if (pgStarted) await pg.stop().catch(() => {});
   process.exit(code);
 }
@@ -139,5 +151,6 @@ say('  Web:   http://localhost:3000');
 say('  Admin: http://localhost:3001');
 say('  Tài khoản demo: admin@mmo.local / buyer1@mmo.local / shopgmail@mmo.local – mật khẩu MatKhau@2026');
 say('  Nhấn Ctrl + C để dừng.');
-const dev = spawn(isWin ? 'npm.cmd' : 'npm', ['run', 'dev'], { cwd: root, env, stdio: 'inherit', shell: isWin });
+// macOS/Linux: tách nhóm tiến trình riêng để Ctrl+C dừng gọn cả api/web/admin rồi mới tắt PostgreSQL
+dev = spawn(isWin ? 'npm.cmd' : 'npm', ['run', 'dev'], { cwd: root, env, stdio: 'inherit', shell: isWin, detached: !isWin });
 dev.on('exit', (code) => shutdown(code ?? 0));
