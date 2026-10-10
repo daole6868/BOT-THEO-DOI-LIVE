@@ -156,6 +156,6 @@ export function Table({ children, className }: { children: ReactNode; className?
 export function TH({ children, className, align }: { children?: ReactNode; className?: string; align?: 'right' | 'center' }) {
   return <th className={cn('whitespace-nowrap border-b border-border bg-subtle/60 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted', align === 'right' && 'text-right', align === 'center' && 'text-center', className)}>{children}</th>;
 }
-export function TD({ children, className, align }: { children?: ReactNode; className?: string; align?: 'right' | 'center' }) {
-  return <td className={cn('border-b border-border px-4 py-3 align-middle', align === 'right' && 'text-right tabular', align === 'center' && 'text-center', className)}>{children}</td>;
+export function TD({ children, className, align, title, colSpan }: { children?: ReactNode; className?: string; align?: 'right' | 'center'; title?: string; colSpan?: number }) {
+  return <td title={title} colSpan={colSpan} className={cn('border-b border-border px-4 py-3 align-middle', align === 'right' && 'text-right tabular', align === 'center' && 'text-center', className)}>{children}</td>;
 }

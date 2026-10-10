@@ -157,6 +157,36 @@ export class AnalyticsService {
 
   // ---------------- Admin ----------------
 
+  /** Số việc đang chờ của từng hàng đợi (nhẹ, dùng cho badge menu admin). */
+  async queues() {
+    const q = await Promise.all([
+      this.prisma.dispute.count({ where: { status: 'ESCALATED' } }),
+      this.prisma.withdrawal.count({ where: { status: { in: ['REQUESTED', 'APPROVED'] } } }),
+      this.prisma.withdrawal.count({ where: { status: 'ON_HOLD' } }),
+      this.prisma.sellerApplication.count({ where: { status: 'PENDING' } }),
+      this.prisma.product.count({ where: { status: 'PENDING_REVIEW', deletedAt: null } }),
+      this.prisma.report.count({ where: { status: 'OPEN' } }),
+      this.prisma.conversation.count({ where: { type: 'SUPPORT', supportStatus: 'QUEUED' } }),
+      this.prisma.paymentWebhookEvent.count({ where: { status: 'UNMATCHED' } }),
+      this.prisma.balanceAdjustment.count({ where: { status: 'PENDING' } }),
+      this.prisma.requestPost.count({ where: { status: 'PENDING_REVIEW' } }),
+      this.prisma.manualDepositClaim.count({ where: { status: 'PENDING' } }),
+    ]);
+    return {
+      escalatedDisputes: q[0],
+      withdrawalsPending: q[1],
+      withdrawalsOnHold: q[2],
+      sellerApplications: q[3],
+      productsPending: q[4],
+      reportsOpen: q[5],
+      supportQueued: q[6],
+      unmatchedDeposits: q[7],
+      adjustmentsPending: q[8],
+      postsPending: q[9],
+      depositClaims: q[10],
+    };
+  }
+
   async admin(days: number) {
     const { start, prevStart } = this.range(days);
     const all = Prisma.sql`true`;
@@ -196,19 +226,7 @@ export class AnalyticsService {
       this.prisma.deposit.aggregate({ where: { status: 'COMPLETED', completedAt: { gte: today } }, _sum: { amountReceived: true }, _count: true }),
       this.prisma.withdrawal.aggregate({ where: { status: 'PAID', paidAt: { gte: today } }, _sum: { amount: true }, _count: true }),
       this.prisma.escrowHold.aggregate({ where: { status: { in: ['HOLDING', 'FROZEN'] } }, _sum: { amount: true } }),
-      Promise.all([
-        this.prisma.dispute.count({ where: { status: 'ESCALATED' } }),
-        this.prisma.withdrawal.count({ where: { status: { in: ['REQUESTED', 'APPROVED'] } } }),
-        this.prisma.withdrawal.count({ where: { status: 'ON_HOLD' } }),
-        this.prisma.sellerApplication.count({ where: { status: 'PENDING' } }),
-        this.prisma.product.count({ where: { status: 'PENDING_REVIEW', deletedAt: null } }),
-        this.prisma.report.count({ where: { status: 'OPEN' } }),
-        this.prisma.conversation.count({ where: { type: 'SUPPORT', supportStatus: 'QUEUED' } }),
-        this.prisma.paymentWebhookEvent.count({ where: { status: 'UNMATCHED' } }),
-        this.prisma.balanceAdjustment.count({ where: { status: 'PENDING' } }),
-        this.prisma.requestPost.count({ where: { status: 'PENDING_REVIEW' } }),
-        this.prisma.manualDepositClaim.count({ where: { status: 'PENDING' } }),
-      ]),
+      this.queues(),
       this.prisma.$queryRaw<{ name: string; gmv: bigint; orders: bigint }[]>`
         SELECT c.name, coalesce(sum(o.total - o."refundedAmount"), 0) AS gmv, count(o.id) AS orders
         FROM categories c
@@ -256,19 +274,7 @@ export class AnalyticsService {
         withdrawalsToday: { amount: Number(withdrawalsToday._sum.amount ?? 0n), count: withdrawalsToday._count },
         escrowHolding: Number(escrowTotal._sum.amount ?? 0n),
       },
-      queues: {
-        escalatedDisputes: queues[0],
-        withdrawalsPending: queues[1],
-        withdrawalsOnHold: queues[2],
-        sellerApplications: queues[3],
-        productsPending: queues[4],
-        reportsOpen: queues[5],
-        supportQueued: queues[6],
-        unmatchedDeposits: queues[7],
-        adjustmentsPending: queues[8],
-        postsPending: queues[9],
-        depositClaims: queues[10],
-      },
+      queues,
       series: series.map((s) => ({ ...s, fee: feeMap.get(s.day) ?? 0 })),
       gmvByCategory: byCategory.map((c) => ({ name: c.name, gmv: Number(c.gmv), orders: Number(c.orders) })),
       heatmap: heatmap.map((h) => ({ dow: h.dow, hour: h.hour, n: Number(h.n) })),

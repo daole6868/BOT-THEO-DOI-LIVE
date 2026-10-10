@@ -29,6 +29,12 @@ export class AdminDashboardController {
     const days = [7, 30, 90].includes(Number(range)) ? Number(range) : 30;
     return this.analytics.admin(days);
   }
+
+  @Perm('dashboard.view')
+  @Get('queues')
+  queues() {
+    return this.analytics.queues();
+  }
 }
 
 @AdminArea()
