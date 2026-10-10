@@ -27,6 +27,16 @@ export default function SellerApplyPage() {
   const u = me?.user;
   if (!u) return null;
 
+  if (u.isStaff && !u.store)
+    return (
+      <Card className="p-8 text-center">
+        <ShieldCheck className="mx-auto h-12 w-12 text-primary" />
+        <p className="mt-3 text-lg font-semibold">Đây là tài khoản quản trị</p>
+        <p className="mx-auto mt-1 max-w-md text-sm text-muted">Tài khoản nhân sự không được mở gian hàng (tránh xung đột lợi ích). Mọi việc quản lý sàn thực hiện ở trang quản trị.</p>
+        <a href={process.env.NEXT_PUBLIC_ADMIN_URL} target="_blank" rel="noopener noreferrer"><Button className="mt-4">Mở trang quản trị ↗</Button></a>
+      </Card>
+    );
+
   if (u.store)
     return (
       <Card className="p-8 text-center">

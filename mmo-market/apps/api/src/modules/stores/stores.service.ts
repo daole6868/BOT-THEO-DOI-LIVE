@@ -172,6 +172,7 @@ export class StoresService {
 
   async apply(a: AuthContext, input: ApplicationInput) {
     const user = a.user;
+    if (user.isStaff) throw Errors.forbidden('Tài khoản nhân sự không được mở gian hàng (tránh xung đột lợi ích)');
     if (!user.mfaEnabled) throw Errors.mfaSetupRequired();
     if (await this.prisma.store.findUnique({ where: { ownerId: user.id } })) throw Errors.bad('Bạn đã có gian hàng');
     const existing = await this.prisma.sellerApplication.findUnique({ where: { userId: user.id } });

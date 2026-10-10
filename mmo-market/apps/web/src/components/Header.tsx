@@ -1,7 +1,7 @@
 'use client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Avatar, Button, Dropdown, MenuItem, shortVnd, timeAgo } from '@mmo/ui';
-import { Bell, ChevronDown, LayoutGrid, LogOut, Menu, MessageCircle, Package, ShieldCheck, Store, User, Wallet, FileText } from 'lucide-react';
+import { Bell, ChevronDown, LayoutGrid, LogOut, Menu, MessageCircle, Package, ShieldCheck, Store, User, Wallet, FileText, LayoutDashboard } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Suspense, useState } from 'react';
@@ -136,14 +136,19 @@ function UserMenu() {
         <div onClick={close}>
           <div className="px-3 py-2">
             <p className="font-semibold text-fg">{user.displayName}</p>
-            <p className="text-xs text-muted">@{user.username}</p>
+            <p className="text-xs text-muted">@{user.username}{user.isStaff && <span className="ml-1.5 rounded bg-danger-soft px-1.5 py-0.5 text-[10px] font-semibold text-danger">Nhân sự</span>}</p>
           </div>
           <div className="my-1 border-t border-border" />
+          {user.isStaff && (
+            <MenuItem icon={<LayoutDashboard className="h-4 w-4" />} onClick={() => window.open(process.env.NEXT_PUBLIC_ADMIN_URL, '_blank', 'noopener')}>
+              Trang quản trị ↗
+            </MenuItem>
+          )}
           {user.store ? (
             <MenuItem icon={<Store className="h-4 w-4" />} onClick={() => router.push('/seller')}>
               Seller Center
             </MenuItem>
-          ) : (
+          ) : user.isStaff ? null : (
             <MenuItem icon={<Store className="h-4 w-4" />} onClick={() => router.push('/tai-khoan/dang-ky-ban-hang')}>
               Đăng ký bán hàng
             </MenuItem>

@@ -33,9 +33,15 @@ export default function AccountLayout({ children }: { children: ReactNode }) {
                   <n.icon className="h-4 w-4" /> {n.label}
                 </Link>
               ))}
-              <Link href={store ? '/seller' : '/tai-khoan/dang-ky-ban-hang'} className={cn('mt-0 flex shrink-0 items-center gap-2.5 rounded-lg border border-dashed border-primary/40 px-3 py-2 text-sm font-medium text-primary lg:mt-3', path.startsWith('/tai-khoan/dang-ky-ban-hang') && 'bg-primary-soft')}>
-                <Store className="h-4 w-4" /> {store ? 'Seller Center' : 'Đăng ký bán hàng'}
-              </Link>
+              {data?.user?.isStaff && !store ? (
+                <a href={process.env.NEXT_PUBLIC_ADMIN_URL} target="_blank" rel="noopener noreferrer" className="mt-0 flex shrink-0 items-center gap-2.5 rounded-lg border border-dashed border-danger/40 px-3 py-2 text-sm font-medium text-danger lg:mt-3">
+                  <Store className="h-4 w-4" /> Trang quản trị ↗
+                </a>
+              ) : (
+                <Link href={store ? '/seller' : '/tai-khoan/dang-ky-ban-hang'} className={cn('mt-0 flex shrink-0 items-center gap-2.5 rounded-lg border border-dashed border-primary/40 px-3 py-2 text-sm font-medium text-primary lg:mt-3', path.startsWith('/tai-khoan/dang-ky-ban-hang') && 'bg-primary-soft')}>
+                  <Store className="h-4 w-4" /> {store ? 'Seller Center' : 'Đăng ký bán hàng'}
+                </Link>
+              )}
             </nav>
           </aside>
           <div className={cn('min-w-0', fullBleed && 'lg:-mr-0')}>{children}</div>

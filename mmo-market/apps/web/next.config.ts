@@ -17,6 +17,7 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:4000',
     NEXT_PUBLIC_DEV_TOOLS: process.env.NEXT_PUBLIC_DEV_TOOLS || 'false',
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '',
+    NEXT_PUBLIC_ADMIN_URL: process.env.ADMIN_ORIGIN || 'http://localhost:3001',
   },
   async rewrites() {
     // Trình duyệt chỉ gọi cùng origin /api -> Next chuyển tiếp tới API (cookie & CSRF giữ nguyên)

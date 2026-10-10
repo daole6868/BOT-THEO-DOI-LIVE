@@ -1,6 +1,6 @@
 'use client';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Field, Input } from '@mmo/ui';
+import { Button, Field, Input, useToast } from '@mmo/ui';
 import { ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -12,6 +12,7 @@ function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const qc = useQueryClient();
+  const toast = useToast();
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
   const [challenge, setChallenge] = useState<string | null>(null);
@@ -24,6 +25,8 @@ function LoginForm() {
 
   const done = async () => {
     await qc.invalidateQueries();
+    const me = await api<{ user: { isStaff: boolean } | null }>('/auth/me').catch(() => null);
+    if (me?.user?.isStaff) toast.info('Đây là tài khoản quản trị', `Trang quản trị nằm ở ${process.env.NEXT_PUBLIC_ADMIN_URL} (menu tài khoản → Trang quản trị).`);
     router.push(safeNext);
     router.refresh();
   };
@@ -56,6 +59,9 @@ function LoginForm() {
         !challenge && (
           <>
             Chưa có tài khoản? <Link href="/dang-ky" className="font-medium text-primary hover:underline">Đăng ký</Link>
+            <span className="mt-2 block text-xs">
+              Nhân sự quản trị? <a href={`${process.env.NEXT_PUBLIC_ADMIN_URL}/login`} className="text-primary hover:underline">Đăng nhập trang quản trị</a>
+            </span>
           </>
         )
       }

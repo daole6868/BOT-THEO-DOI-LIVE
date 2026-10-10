@@ -36,6 +36,17 @@ function Shell({ children }: { children: ReactNode }) {
     refetchInterval: 60_000,
   });
   if (!u) return null;
+  if (!u.store && u.isStaff)
+    return (
+      <Card className="mx-auto mt-10 max-w-md">
+        <EmptyState
+          icon={<ShieldCheck className="h-6 w-6" />}
+          title="Đây là tài khoản quản trị"
+          description="Tài khoản nhân sự không bán hàng trên sàn. Quản lý sàn (duyệt người bán, đơn hàng, rút tiền, hỗ trợ…) tại trang quản trị."
+          action={<a href={process.env.NEXT_PUBLIC_ADMIN_URL} target="_blank" rel="noopener noreferrer"><Button>Mở trang quản trị ↗</Button></a>}
+        />
+      </Card>
+    );
   if (!u.store)
     return (
       <Card className="mx-auto mt-10 max-w-md">
