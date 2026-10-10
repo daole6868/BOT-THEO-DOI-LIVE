@@ -102,7 +102,7 @@ export function ProductRow({ p, attrs }: { p: ProductCardData & { attrs?: Record
             ⭐ {p.ratingAvg ? p.ratingAvg.toFixed(1) : '–'} ({num(p.ratingCount)})
           </span>
           <span>· Đã bán {num(p.soldCount)}</span>
-          {p.deliveryType === 'AUTO' && <span>· Còn {num(p.stockTotal)}</span>}
+          {p.deliveryType === 'AUTO' && <span className={p.stockTotal <= 0 ? 'font-medium text-danger' : undefined}>· {p.stockTotal > 0 ? `Còn ${num(p.stockTotal)}` : 'Hết hàng'}</span>}
         </div>
         {show.length > 0 && <p className="mt-1 truncate text-xs text-fg2">{show.join(' · ')}</p>}
       </div>
@@ -111,7 +111,11 @@ export function ProductRow({ p, attrs }: { p: ProductCardData & { attrs?: Record
           <span className="block text-[11px] text-muted">từ</span>
           <span className="text-base font-bold text-primary">{vnd(p.priceMin)}</span>
         </span>
-        <span className="hidden rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-fg sm:block">Mua</span>
+        {p.deliveryType === 'AUTO' && p.stockTotal <= 0 ? (
+          <span className="hidden rounded-lg bg-subtle px-3 py-1.5 text-xs font-semibold text-muted sm:block">Hết hàng</span>
+        ) : (
+          <span className="hidden rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-fg sm:block">Mua</span>
+        )}
       </div>
     </Link>
   );
